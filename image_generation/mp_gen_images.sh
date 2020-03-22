@@ -1,0 +1,42 @@
+#! /bin/bash
+
+NUM_IMAGES=$3
+START_IDX=$2
+NUM_PROCS=$1
+NUM_IMAGES_PER_PROC=$((NUM_IMAGES / NUM_PROCS))
+OUTPUT=$4
+# START_SEED=5
+
+# for SEED in {$START_SEED..$((START_SEED+NUM_PROCS))}
+# for ((SEED=$START_SEED; SEED<$START_SEED + $NUM_PROCS; SEED++))
+for ((IDX=$START_IDX; IDX<$((START_IDX + NUM_IMAGES)); IDX=$((IDX + NUM_IMAGES_PER_PROC))))
+do
+    $BLENDER_PATH --background --python render_images.py -- --num_images $NUM_IMAGES_PER_PROC \
+                                                            --width 480 \
+                                                            --height 320 \
+                                                            --start_idx $IDX \
+                                                            --output_image_dir="$OUTPUT/images" \
+                                                            --output_depth_dir="$OUTPUT/depth"\
+                                                            --output_scene_dir="$OUTPUT/scenes"\
+                                                            --output_blend_dir="$OUTPUT/blendfiles"\
+                                                            --output_cam_dir="$OUTPUT/cameras" \
+                                                            --output_scene_file="$OUTPUT/CLEVR_scenes.json" \
+                                                            --all_views \
+                                                            &
+                                                            # --min_objects 1 \
+                                                            # --max_objects 2 \
+                                                            # --base_scene_blendfile="data/base_scene_full2.blend" \
+    sleep 2
+done
+
+# SEED=10 ./gen_images.sh &
+# sleep 1
+# SEED=11 ./gen_images.sh &
+# sleep 1
+# SEED=12 ./gen_images.sh &
+# sleep 1
+# SEED=13 ./gen_images.sh &
+# sleep 1
+# SEED=14 ./gen_images.sh &
+# sleep 1
+# SEED=15 ./gen_images.sh &
