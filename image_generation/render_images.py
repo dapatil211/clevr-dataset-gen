@@ -295,6 +295,12 @@ parser.add_argument(
     + "azimuths or only create default single camera view",
 )
 
+parser.add_argument(
+    "--floating", action="store_true", help="Whether to have floating objects",
+)
+
+parser.add_argument("--prototype", help="Prototype to create", default=None)
+
 # THETAS = list(range(0, 360, 90))
 THETAS = [319]
 PHIS = list(range(20, 60, 13))
@@ -360,6 +366,8 @@ def main(args):
         if args.save_blendfiles == 1:
             blend_path = blend_template % (i + args.start_idx)
         num_objects = random.randint(args.min_objects, args.max_objects)
+        if args.prototype:
+            num_objects = 1
         render_scene(
             args,
             num_objects=num_objects,
@@ -763,6 +771,8 @@ def add_random_objects(scene_struct, num_objects, args, camera):
     for i in range(num_objects):
         # Choose a random size
         size_name, r = random.choice(size_mapping)
+        if args.prototype:
+            size_name, r = [size for size in size_mapping if size[0] == "large"][0]
 
         # Try to place the object, ensuring that we don't intersect any existing
         # objects and that we are more than the desired margin away from all existing
@@ -778,20 +788,37 @@ def add_random_objects(scene_struct, num_objects, args, camera):
                 return add_random_objects(scene_struct, num_objects, args, camera)
             x = random.uniform(-3, 3)
             y = random.uniform(-3, 3)
+            if args.floating:
+                z = random.choice([0.0, 1.7]) + r
+            else:
+                z = r
+            if args.prototype:
+                x, y = 0.0, 0.0
             # Check to make sure the new object is further than min_dist from all
             # other objects, and further than margin along the four cardinal directions
             dists_good = True
             margins_good = True
-            for (xx, yy, rr) in positions:
-                dx, dy = x - xx, y - yy
-                dist = math.sqrt(dx * dx + dy * dy)
+            for (xx, yy, zz, rr) in positions:
+                dx, dy, dz = x - xx, y - yy, z - zz
+                dist = math.sqrt(dx * dx + dy * dy + dz * dz)
                 if dist - r - rr < args.min_dist:
                     dists_good = False
                     break
-                for direction_name in ["left", "right", "front", "behind"]:
+                for direction_name in [
+                    "left",
+                    "right",
+                    "front",
+                    "behind",
+                    "above",
+                    "below",
+                ]:
                     direction_vec = scene_struct["directions"][direction_name]
-                    assert direction_vec[2] == 0
-                    margin = dx * direction_vec[0] + dy * direction_vec[1]
+                    # assert direction_vec[2] == 0
+                    margin = (
+                        dx * direction_vec[0]
+                        + dy * direction_vec[1]
+                        + dz * direction_vec[2]
+                    )
                     if 0 < margin < args.margin:
                         print(margin, args.margin, direction_name)
                         print("BROKEN MARGIN!")
@@ -804,7 +831,19 @@ def add_random_objects(scene_struct, num_objects, args, camera):
                 break
 
         # Choose random color and shape
-        if shape_color_combos is None:
+        if args.prototype:
+            obj_name, obj_name_out = [
+                obj for obj in object_mapping if obj[1] == args.prototype
+            ][0]
+            obj_name_to_color_name = {
+                "pepper": "green",
+                "cheese": "yellow",
+                "garlic": "gray",
+            }
+            color_name = obj_name_to_color_name[obj_name_out]
+            rgba = color_name_to_rgba[color_name]
+
+        elif shape_color_combos is None:
             obj_name, obj_name_out = random.choice(object_mapping)
             color_name, rgba = random.choice(list(color_name_to_rgba.items()))
         else:
@@ -819,16 +858,28 @@ def add_random_objects(scene_struct, num_objects, args, camera):
 
         # Choose random orientation for the object.
         theta = 360.0 * random.random()
+        if args.prototype:
+            theta = 180.0
 
         # Actually add the object to the scene
-        utils.add_object(args.shape_dir, obj_name, r, (x, y), theta=theta)
+        # import ipdb
+
+        # ipdb.set_trace()
+        utils.add_object(args.shape_dir, obj_name, r, (x, y, z), theta=theta)
         obj = bpy.context.object
         blender_objects.append(obj)
-        positions.append((x, y, r))
+        positions.append((x, y, z, r))
 
         # Attach a random material
-        mat_name, mat_name_out = random.choice(material_mapping)
-        utils.add_material(mat_name, Color=rgba)
+        if args.prototype:
+            mat_name, mat_name_out = [
+                mat for mat in material_mapping if mat[1] == "rubber"
+            ][0]
+            utils.add_material(mat_name, Color=rgba)
+
+        else:
+            mat_name, mat_name_out = random.choice(material_mapping)
+            utils.add_material(mat_name, Color=rgba)
 
         # Record data about the object in the scene data structure
         pixel_coords = utils.get_camera_coords(camera, obj.location)
@@ -841,6 +892,7 @@ def add_random_objects(scene_struct, num_objects, args, camera):
                 "rotation": theta,
                 "pixel_coords": pixel_coords,
                 "color": color_name,
+                "radius": r,
             }
         )
 
@@ -868,8 +920,8 @@ def compute_all_relationships(scene_struct, eps=0.2):
   """
     all_relationships = {}
     for name, direction_vec in scene_struct["directions"].items():
-        if name == "above" or name == "below":
-            continue
+        # if name == "above" or name == "below":
+        #     continue
         all_relationships[name] = []
         for i, obj1 in enumerate(scene_struct["objects"]):
             coords1 = obj1["3d_coords"]
@@ -993,4 +1045,3 @@ if __name__ == "__main__":
         print("arguments like this:")
         print()
         print("python render_images.py --help")
-

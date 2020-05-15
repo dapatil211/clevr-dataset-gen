@@ -1,10 +1,10 @@
 #! /bin/bash
 
-NUM_IMAGES=$3
-START_IDX=$2
 NUM_PROCS=$1
-NUM_IMAGES_PER_PROC=$((NUM_IMAGES / NUM_PROCS))
+START_IDX=$2
+NUM_IMAGES=$3
 OUTPUT=$4
+NUM_IMAGES_PER_PROC=$((NUM_IMAGES / NUM_PROCS))
 # START_SEED=5
 
 # for SEED in {$START_SEED..$((START_SEED+NUM_PROCS))}
@@ -22,9 +22,13 @@ do
                                                             --output_cam_dir="$OUTPUT/cameras" \
                                                             --output_scene_file="$OUTPUT/CLEVR_scenes.json" \
                                                             --all_views \
+                                                            --floating \
+                                                            --properties_json="data/properties_novel.json" \
                                                             &
+                                                            # --prototype="garlic" \
+                                                            # --save_blendfiles=1 \
                                                             # --min_objects 1 \
-                                                            # --max_objects 2 \
+                                                            # --max_objects 1 \
                                                             # --base_scene_blendfile="data/base_scene_full2.blend" \
     sleep 2
 done
