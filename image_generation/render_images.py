@@ -299,6 +299,16 @@ parser.add_argument(
     "--floating", action="store_true", help="Whether to have floating objects",
 )
 
+parser.add_argument(
+    "--contrastive", action="store_true", help="Whether to create_contrastive dataset",
+)
+
+
+parser.add_argument(
+    "--contrastive-info-file",
+    help="Place to store info about contrastive dataset",
+    default="CLEVR_CE.json",
+)
 parser.add_argument("--prototype", help="Prototype to create", default=None)
 
 # THETAS = list(range(0, 360, 90))
@@ -356,28 +366,39 @@ def main(args):
                     ),
                     np.array(cam_T_origin),
                 )
-    all_scene_paths = []
-    for i in range(args.num_images):
-        img_path = img_template % (i + args.start_idx)
-        depth_path = depth_template % (i + args.start_idx)
-        scene_path = scene_template % (i + args.start_idx)
-        all_scene_paths.append(scene_path)
-        blend_path = None
-        if args.save_blendfiles == 1:
-            blend_path = blend_template % (i + args.start_idx)
-        num_objects = random.randint(args.min_objects, args.max_objects)
-        if args.prototype:
-            num_objects = 1
-        render_scene(
+    if args.contrastive:
+        all_scene_paths = render_all_contrastive_scenes(
             args,
-            num_objects=num_objects,
-            output_index=(i + args.start_idx),
-            output_split=args.split,
-            output_image=img_path,
-            output_depth=depth_path,
-            output_scene=scene_path,
-            output_blendfile=blend_path,
+            args.split,
+            img_template,
+            depth_template,
+            scene_template,
+            None,
+            blend_template,
         )
+    else:
+        all_scene_paths = []
+        for i in range(args.num_images):
+            img_path = img_template % (i + args.start_idx)
+            depth_path = depth_template % (i + args.start_idx)
+            scene_path = scene_template % (i + args.start_idx)
+            all_scene_paths.append(scene_path)
+            blend_path = None
+            if args.save_blendfiles == 1:
+                blend_path = blend_template % (i + args.start_idx)
+            num_objects = random.randint(args.min_objects, args.max_objects)
+            if args.prototype:
+                num_objects = 1
+            render_scene(
+                args,
+                num_objects=num_objects,
+                output_index=(i + args.start_idx),
+                output_split=args.split,
+                output_image=img_path,
+                output_depth=depth_path,
+                output_scene=scene_path,
+                output_blendfile=blend_path,
+            )
 
     # After rendering all images, combine the JSON files for each scene into a
     # single JSON file.
@@ -428,6 +449,392 @@ def get_calibration_matrix_K_from_blender(camd):
 
     K = np.array(((alpha_u, skew, u_0), (0, alpha_v, v_0), (0, 0, 1)))
     return K
+
+
+from collections import defaultdict
+
+
+def render_all_contrastive_scenes(
+    args,
+    output_split="none",
+    img_template="render.png",
+    depth_template="render_json",
+    scene_template="render.exr",
+    output_extrinsic="render.npy",
+    blend_template=None,
+):
+
+    scene_list = {
+        "shape": [
+            [
+                {
+                    "size_name": "large",
+                    "object_name": "cube",
+                    "material_name": "metal",
+                    "color_name": "red",
+                    "left": 0.0,
+                    "behind": 0.0,
+                    "up": 0.0,
+                }
+            ],
+            [
+                {
+                    "size_name": "large",
+                    "object_name": "sphere",
+                    "material_name": "metal",
+                    "color_name": "red",
+                    "left": 0.0,
+                    "behind": 0.0,
+                    "up": 0.0,
+                }
+            ],
+        ],
+        "color": [
+            [
+                {
+                    "size_name": "large",
+                    "object_name": "cube",
+                    "material_name": "metal",
+                    "color_name": "red",
+                    "left": 0.0,
+                    "behind": 0.0,
+                    "up": 0.0,
+                }
+            ],
+            [
+                {
+                    "size_name": "large",
+                    "object_name": "cube",
+                    "material_name": "metal",
+                    "color_name": "green",
+                    "left": 0.0,
+                    "behind": 0.0,
+                    "up": 0.0,
+                }
+            ],
+        ],
+        "material": [
+            [
+                {
+                    "size_name": "large",
+                    "object_name": "cube",
+                    "material_name": "rubber",
+                    "color_name": "red",
+                    "left": 0.0,
+                    "behind": 0.0,
+                    "up": 0.0,
+                }
+            ],
+            [
+                {
+                    "size_name": "large",
+                    "object_name": "cube",
+                    "material_name": "metal",
+                    "color_name": "red",
+                    "left": 0.0,
+                    "behind": 0.0,
+                    "up": 0.0,
+                }
+            ],
+        ],
+        "size": [
+            [
+                {
+                    "size_name": "large",
+                    "object_name": "cube",
+                    "material_name": "metal",
+                    "color_name": "red",
+                    "left": 0.0,
+                    "behind": 0.0,
+                    "up": 0.0,
+                }
+            ],
+            [
+                {
+                    "size_name": "small",
+                    "object_name": "cube",
+                    "material_name": "metal",
+                    "color_name": "red",
+                    "left": 0.0,
+                    "behind": 0.0,
+                    "up": 0.0,
+                }
+            ],
+        ],
+        "spatial_relation": [
+            [
+                {
+                    "size_name": "large",
+                    "object_name": "cube",
+                    "material_name": "metal",
+                    "color_name": "red",
+                    "left": -1.5,
+                    "behind": 0.0,
+                    "up": 0.0,
+                },
+                {
+                    "size_name": "large",
+                    "object_name": "sphere",
+                    "material_name": "metal",
+                    "color_name": "green",
+                    "left": 1.5,
+                    "behind": 0.0,
+                    "up": 0.0,
+                },
+            ],
+            [
+                {
+                    "size_name": "large",
+                    "object_name": "cube",
+                    "material_name": "metal",
+                    "color_name": "red",
+                    "left": 1.5,
+                    "behind": 0.0,
+                    "up": 0.0,
+                },
+                {
+                    "size_name": "large",
+                    "object_name": "sphere",
+                    "material_name": "metal",
+                    "color_name": "green",
+                    "left": -1.5,
+                    "behind": 0.0,
+                    "up": 0.0,
+                },
+            ],
+        ],
+    }
+
+    dataset_info = defaultdict(lambda: [])
+    num_scenes = 0
+    all_scene_paths = []
+    for attribute in scene_list:
+        for scene in scene_list[attribute]:
+            img_path = img_template % num_scenes
+            depth_path = depth_template % num_scenes
+            scene_path = scene_template % num_scenes
+            all_scene_paths.append(scene_path)
+            blend_path = None
+            if args.save_blendfiles == 1:
+                blend_path = blend_template % (i + args.start_idx)
+            render_scene_from_dict(
+                args,
+                scene,
+                num_scenes,
+                output_split,
+                img_path,
+                scene_path,
+                depth_path,
+                output_extrinsic,
+                blend_path,
+            )
+            dataset_info[attribute].append(num_scenes)
+            num_scenes += 1
+    with open(args.contrastive_info_file, "w") as f:
+        json.dump(dataset_info, f)
+    return all_scene_paths
+
+
+def render_scene_from_dict(
+    args,
+    object_list,
+    output_index=0,
+    output_split="none",
+    output_image="render.png",
+    output_scene="render_json",
+    output_depth="render.exr",
+    output_extrinsic="render.npy",
+    output_blendfile=None,
+):
+    # Load the main blendfile
+    bpy.ops.wm.open_mainfile(filepath=args.base_scene_blendfile)
+    # Load materials
+    utils.load_materials(args.material_dir)
+    # Set render arguments so we can get pixel coordinates later.
+    # We use functionality specific to the CYCLES renderer so BLENDER_RENDER
+    # cannot be used.
+    render_args = bpy.context.scene.render
+    render_args.engine = "CYCLES"
+    render_args.filepath = output_image
+    render_args.resolution_x = args.width
+    render_args.resolution_y = args.height
+    render_args.resolution_percentage = 100
+    render_args.tile_x = args.render_tile_size
+    render_args.tile_y = args.render_tile_size
+    # if args.save_depth_maps:
+    bpy.context.scene.use_nodes = True
+    blender_tree = bpy.context.scene.node_tree
+    blender_tree.nodes.new("CompositorNodeMapRange")
+    # Range of depth (Hacky values set accordind to the location of the cameras for this project)
+    blender_tree.nodes["Map Range"].inputs["From Min"].default_value = 0
+    blender_tree.nodes["Map Range"].inputs["From Max"].default_value = 100
+
+    if args.use_gpu == 1:
+        # Blender changed the API for enabling CUDA at some point
+        if bpy.app.version < (2, 78, 0):
+            bpy.context.user_preferences.system.compute_device_type = "CUDA"
+            bpy.context.user_preferences.system.compute_device = "CUDA_0"
+        else:
+            cycles_prefs = bpy.context.user_preferences.addons["cycles"].preferences
+            cycles_prefs.compute_device_type = "CUDA"
+    # Some CYCLES-specific stuff
+    bpy.data.worlds["World"].cycles.sample_as_light = True
+    bpy.context.scene.cycles.blur_glossy = 2.0
+    bpy.context.scene.cycles.samples = args.render_num_samples
+    bpy.context.scene.cycles.transparent_min_bounces = args.render_min_bounces
+    bpy.context.scene.cycles.transparent_max_bounces = args.render_max_bounces
+    if args.use_gpu == 1:
+        bpy.context.scene.cycles.device = "GPU"
+
+    # This will give ground-truth information about the scene and its objects
+    scene_struct = {
+        "split": output_split,
+        "image_index": output_index,
+        "image_filename": os.path.basename(output_image),
+        "objects": [],
+        "directions": {},
+    }
+
+    # Put a plane on the ground so we can compute cardinal directions
+    bpy.ops.mesh.primitive_plane_add(radius=5)
+    plane = bpy.context.object
+
+    def rand(L):
+        return 2.0 * L * (random.random() - 0.5)
+
+    # Add random jitter to camera position
+    if args.camera_jitter > 0:
+        for i in range(3):
+            bpy.data.objects["Camera"].location[i] += rand(args.camera_jitter)
+
+    # Figure out the left, up, and behind directions along the plane and record
+    # them in the scene structure
+    camera = bpy.data.objects["Camera"]
+    plane_normal = plane.data.vertices[0].normal
+    cam_behind = camera.matrix_world.to_quaternion() * Vector((0, 0, -1))
+    cam_left = camera.matrix_world.to_quaternion() * Vector((-1, 0, 0))
+    cam_up = camera.matrix_world.to_quaternion() * Vector((0, 1, 0))
+    plane_behind = (cam_behind - cam_behind.project(plane_normal)).normalized()
+    plane_left = (cam_left - cam_left.project(plane_normal)).normalized()
+    plane_up = cam_up.project(plane_normal).normalized()
+
+    # Delete the plane; we only used it for normals anyway. The base scene file
+    # contains the actual ground plane.
+    utils.delete_object(plane)
+
+    # Save all six axis-aligned directions in the scene struct
+    scene_struct["directions"]["behind"] = tuple(plane_behind)
+    scene_struct["directions"]["front"] = tuple(-plane_behind)
+    scene_struct["directions"]["left"] = tuple(plane_left)
+    scene_struct["directions"]["right"] = tuple(-plane_left)
+    scene_struct["directions"]["above"] = tuple(plane_up)
+    scene_struct["directions"]["below"] = tuple(-plane_up)
+
+    # Add random jitter to lamp positions
+    if args.key_light_jitter > 0:
+        for i in range(3):
+            bpy.data.objects["Lamp_Key"].location[i] += rand(args.key_light_jitter)
+    if args.back_light_jitter > 0:
+        for i in range(3):
+            bpy.data.objects["Lamp_Back"].location[i] += rand(args.back_light_jitter)
+    if args.fill_light_jitter > 0:
+        for i in range(3):
+            bpy.data.objects["Lamp_Fill"].location[i] += rand(args.fill_light_jitter)
+
+    # Now make some random objects
+    for object_dict in object_list:
+        obj_position = (
+            plane_left * object_dict["left"]
+            + plane_behind * object_dict["behind"]
+            + plane_up * object_dict["up"]
+        )
+        object_dict["x_location"] = obj_position[0]
+        object_dict["y_location"] = obj_position[1]
+        object_dict["z_location"] = obj_position[2]
+    objects, _ = add_objects_from_dict(scene_struct, args, camera, object_list)
+
+    # Render the scene and dump the scene data structure
+    scene_struct["objects"] = objects
+    scene_struct["relationships"] = compute_all_relationships(scene_struct)
+
+    if args.all_views:
+        for theta in THETAS:
+            for phi in PHIS:
+                camera.location = obj_centered_camera_pos(args.radius, theta, phi)
+                render_args.filepath = os.path.join(
+                    output_image, "%d_%d.png" % (theta, phi)
+                )
+                render_args.image_settings.file_format = "PNG"
+                while True:
+                    try:
+                        bpy.ops.render.render(write_still=True)
+                        break
+                    except Exception as e:
+                        print(e)
+
+    else:
+        while True:
+            try:
+                bpy.ops.render.render(write_still=True)
+                break
+            except Exception as e:
+                print(e)
+
+    if args.all_views:
+        for theta in THETAS:
+            for phi in PHIS:
+                camera.location = obj_centered_camera_pos(args.radius, theta, phi)
+                blender_tree.links.new(
+                    blender_tree.nodes["Render Layers"].outputs["Depth"],
+                    blender_tree.nodes["Map Range"].inputs["Value"],
+                )
+                blender_tree.links.new(
+                    blender_tree.nodes["Map Range"].outputs["Value"],
+                    blender_tree.nodes["Composite"].inputs["Image"],
+                )
+
+                render_args.image_settings.file_format = "OPEN_EXR"
+                render_args.filepath = os.path.join(
+                    output_depth, "%d_%d.exr" % (theta, phi)
+                )
+
+                while True:
+                    try:
+                        bpy.ops.render.render(write_still=True)
+                        break
+                    except Exception as e:
+                        print(e)
+
+    else:
+        blender_tree.links.new(
+            blender_tree.nodes["Render Layers"].outputs["Depth"],
+            blender_tree.nodes["Map Range"].inputs["Value"],
+        )
+        blender_tree.links.new(
+            blender_tree.nodes["Map Range"].outputs["Value"],
+            blender_tree.nodes["Composite"].inputs["Image"],
+        )
+
+        render_args.image_settings.file_format = "OPEN_EXR"
+        render_args.filepath = output_depth
+
+        while True:
+            try:
+                bpy.ops.render.render(write_still=True)
+                break
+            except Exception as e:
+                print(e)
+    if not args.all_views:
+        bpy.context.scene.update()
+        _, pix_T_cam, cam_T_origin = get_3x4_P_matrix_from_blender(camera)
+        scene_struct["pix_T_cam"] = np.array(pix_T_cam).tolist()
+        scene_struct["cam_T_origin"] = np.array(cam_T_origin).tolist()
+
+    with open(output_scene, "w") as f:
+        json.dump(scene_struct, f, indent=2)
+
+    if output_blendfile is not None:
+        bpy.ops.wm.save_as_mainfile(filepath=output_blendfile)
 
 
 def render_scene(
@@ -742,6 +1149,56 @@ def obj_centered_camera_pos(dist, azimuth_deg, elevation_deg):
     y = dist * math.sin(theta) * math.cos(phi)
     z = dist * math.sin(phi)
     return x, y, z
+
+
+def add_objects_from_dict(scene_struct, args, camera, object_list, exclude=None):
+    with open(args.properties_json, "r") as f:
+        properties = json.load(f)
+        color_name_to_rgba = {}
+        for name, rgb in properties["colors"].items():
+            rgba = [float(c) / 255.0 for c in rgb] + [1.0]
+            color_name_to_rgba[name] = rgba
+        material_mapping = [(v, k) for k, v in properties["materials"].items()]
+        object_mapping = [(v, k) for k, v in properties["shapes"].items()]
+        size_mapping = list(properties["sizes"].items())
+    objects = []
+    for d in object_list:
+        size_name = d["size_name"]
+        obj_name_out = d["object_name"]
+        mat_name_out = d["material_name"]
+        color_name = d["color_name"]
+        x = d["x_location"]
+        y = d["y_location"]
+        z = d["z_location"]
+        r = [size[1] for size in size_mapping if size[0] == size_name][0]
+        rgba = color_name_to_rgba[color_name]
+        obj_name = [obj[0] for obj in object_mapping if obj[1] == obj_name_out][0]
+        mat_name = [mat[0] for mat in material_mapping if mat[1] == mat_name_out][0]
+        theta = 180.0
+        if obj_name == "Cube":
+            r /= math.sqrt(2)
+
+        z += r
+
+        utils.add_object(args.shape_dir, obj_name, r, (x, y, z), theta=theta)
+        obj = bpy.context.object
+        utils.add_material(mat_name, Color=rgba)
+
+        # Record data about the object in the scene data structure
+        pixel_coords = utils.get_camera_coords(camera, obj.location)
+        objects.append(
+            {
+                "shape": obj_name_out,
+                "size": size_name,
+                "material": mat_name_out,
+                "3d_coords": tuple(obj.location),
+                "rotation": theta,
+                "pixel_coords": pixel_coords,
+                "color": color_name,
+                "radius": r,
+            }
+        )
+    return objects, None
 
 
 def add_random_objects(scene_struct, num_objects, args, camera):
