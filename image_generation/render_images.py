@@ -1225,12 +1225,16 @@ def add_random_objects(scene_struct, num_objects, args, camera):
     positions = []
     objects = []
     blender_objects = []
+    # import ipdb
+
+    # ipdb.set_trace()
     for i in range(num_objects):
         # Choose a random size
         size_name, r = random.choice(size_mapping)
         if args.prototype:
             size_name, r = [size for size in size_mapping if size[0] == "large"][0]
-
+        print(size_name)
+        # input()
         # Try to place the object, ensuring that we don't intersect any existing
         # objects and that we are more than the desired margin away from all existing
         # objects along all cardinal directions.
@@ -1257,7 +1261,7 @@ def add_random_objects(scene_struct, num_objects, args, camera):
             margins_good = True
             for (xx, yy, zz, rr) in positions:
                 dx, dy, dz = x - xx, y - yy, z - zz
-                dist = math.sqrt(dx * dx + dy * dy + dz * dz)
+                dist = math.sqrt(dx * dx + dy * dy)  # + dz * dz)
                 if dist - r - rr < args.min_dist:
                     dists_good = False
                     break
@@ -1266,15 +1270,15 @@ def add_random_objects(scene_struct, num_objects, args, camera):
                     "right",
                     "front",
                     "behind",
-                    "above",
-                    "below",
+                    # "above",
+                    # "below",
                 ]:
                     direction_vec = scene_struct["directions"][direction_name]
                     # assert direction_vec[2] == 0
                     margin = (
                         dx * direction_vec[0]
                         + dy * direction_vec[1]
-                        + dz * direction_vec[2]
+                        # + dz * direction_vec[2]
                     )
                     if 0 < margin < args.margin:
                         print(margin, args.margin, direction_name)

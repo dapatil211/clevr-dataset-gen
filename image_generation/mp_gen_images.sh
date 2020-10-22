@@ -21,10 +21,12 @@ do
                                                             --output_blend_dir="$OUTPUT/blendfiles"\
                                                             --output_cam_dir="$OUTPUT/cameras" \
                                                             --output_scene_file="$OUTPUT/CLEVR_scenes.json" \
-                                                            --all_views \
-                                                            --floating \
-                                                            --properties_json="data/properties_novel.json" \
+                                                            --properties_json="data/properties_novel_only.json" \
                                                             &
+                                                            # --contrastive-info-file="$OUTPUT/CLEVR_CE.json"\
+                                                            # --contrastive \
+                                                            # --all_views \
+                                                            # --floating \
                                                             # --prototype="garlic" \
                                                             # --save_blendfiles=1 \
                                                             # --min_objects 1 \
